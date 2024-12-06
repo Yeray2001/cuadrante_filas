@@ -36,11 +36,10 @@
             background-color: #007BFF;
             color: white;
         }
-        input[type="text"], input[type="password"] {
+        input[type="text"] {
             width: 100%;
             border: 1px solid #ddd;
-            padding: 10px;
-            margin-bottom: 10px;
+            padding: 5px;
         }
         button {
             padding: 10px;
@@ -49,154 +48,116 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            margin-right: 10px;
         }
         button:hover {
             background: #0056b3;
-        }
-        .admin-panel, .user-panel {
-            display: none;
         }
     </style>
 </head>
 <body>
     <h1>Cuadrantes App</h1>
     <div class="container">
-        <div id="login-panel">
-            <h2>Iniciar Sesión</h2>
-            <input id="username" type="text" placeholder="Nombre de usuario" />
-            <input id="password" type="password" placeholder="Contraseña" />
-            <button onclick="login()">Ingresar</button>
-        </div>
-        <div id="admin-panel" class="admin-panel">
-            <h2>Panel de Administrador</h2>
-            <table id="quadrant-table">
-                <thead>
-                    <tr>
-                        <th>Evento</th>
-                        <th>Hora</th>
-                        <th>Fila 1</th>
-                        <th>Fila 2</th>
-                        <th>Hora</th>
-                        <th>Fila 3</th>
-                        <th>Fila 4</th>
-                        <th>Eliminar</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Las filas se llenan dinámicamente -->
-                </tbody>
-            </table>
-            <button onclick="addRow()">Agregar Evento</button>
-        </div>
-        <div id="user-panel" class="user-panel">
-            <h2>Vista de Usuario</h2>
-            <table id="user-quadrant-table">
-                <thead>
-                    <tr>
-                        <th>Evento</th>
-                        <th>Hora</th>
-                        <th>Fila 1</th>
-                        <th>Fila 2</th>
-                        <th>Hora</th>
-                        <th>Fila 3</th>
-                        <th>Fila 4</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Las filas se llenan dinámicamente -->
-                </tbody>
-            </table>
-        </div>
+        <table id="quadrant-table">
+            <thead>
+                <tr>
+                    <th>Evento</th>
+                    <th>Hora</th>
+                    <th>Fila 1</th>
+                    <th>Fila 2</th>
+                    <th>Hora</th>
+                    <th>Fila 3</th>
+                    <th>Fila 4</th>
+                    <th>Eliminar</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Las filas se llenan dinámicamente -->
+            </tbody>
+        </table>
+        <button onclick="addRow()">Agregar Evento</button>
     </div>
 
     <script>
-        // Contraseña predeterminada para el administrador
-        const adminCredentials = {
-            username: "admin",
-            password: "1234" // Cambia esta contraseña según tus necesidades
-        };
+        const GITHUB_API_URL = 'https://api.github.com/repos/<TU_USUARIO>/<TU_REPOSITORIO>/contents/data.json';
+        const GITHUB_TOKEN = 'TU_PERSONAL_ACCESS_TOKEN'; // Coloca aquí tu token personal
 
-        // Cargar los datos desde LocalStorage
-        let quadrantData = JSON.parse(localStorage.getItem('quadrantData')) || [];
-
-        function saveQuadrant() {
-            // Guardar los datos en LocalStorage
-            localStorage.setItem('quadrantData', JSON.stringify(quadrantData));
+        async function fetchQuadrantData() {
+            const response = await fetch(GITHUB_API_URL, {
+                headers: {
+                    Authorization: `token ${GITHUB_TOKEN}`
+                }
+            });
+            const fileData = await response.json();
+            const decodedContent = atob(fileData.content); // Decodificar el contenido Base64
+            const quadrantData = JSON.parse(decodedContent);
+            return { quadrantData, sha: fileData.sha }; // Devuelve los datos y el SHA del archivo
         }
 
-        function login() {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-
-            if (username === adminCredentials.username && password === adminCredentials.password) {
-                // Acceso al panel de administrador
-                document.getElementById('login-panel').style.display = 'none';
-                document.getElementById('admin-panel').style.display = 'block';
-                renderQuadrant('admin');
-            } else if (username !== adminCredentials.username) {
-                // Acceso como usuario
-                document.getElementById('login-panel').style.display = 'none';
-                document.getElementById('user-panel').style.display = 'block';
-                renderQuadrant('user');
-            } else {
-                alert("Nombre de usuario o contraseña incorrectos");
-            }
+        async function updateQuadrantData(newData, sha) {
+            const updatedContent = btoa(JSON.stringify(newData, null, 2)); // Codificar el JSON en Base64
+            await fetch(GITHUB_API_URL, {
+                method: 'PUT',
+                headers: {
+                    Authorization: `token ${GITHUB_TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: 'Actualizar cuadrantes',
+                    content: updatedContent,
+                    sha: sha // SHA del archivo existente
+                })
+            });
         }
 
-        function addRow() {
-            // Crear una nueva fila con valores vacíos
-            const newRow = ['', '', '', '', '', '', ''];
-            quadrantData.push(newRow); // Agregar al array de datos
-            saveQuadrant(); // Guardar los datos en LocalStorage
-            renderQuadrant('admin'); // Actualizar la vista
-        }
-
-        function renderQuadrant(role) {
-            const tableId = role === 'admin' ? 'quadrant-table' : 'user-quadrant-table';
-            const tableBody = document.getElementById(tableId).querySelector('tbody');
+        async function loadQuadrantData() {
+            const { quadrantData } = await fetchQuadrantData();
+            const tableBody = document.getElementById('quadrant-table').querySelector('tbody');
             tableBody.innerHTML = '';
 
-            quadrantData.forEach((row, rowIndex) => {
+            quadrantData.forEach((row, index) => {
                 const tr = document.createElement('tr');
-                row.forEach((cell, colIndex) => {
+                Object.values(row).forEach(cell => {
                     const td = document.createElement('td');
-                    if (role === 'admin') {
-                        const input = document.createElement('input');
-                        input.type = 'text';
-                        input.value = cell;
-                        input.oninput = (e) => {
-                            quadrantData[rowIndex][colIndex] = e.target.value;
-                            saveQuadrant();
-                        };
-                        td.appendChild(input);
-                    } else {
-                        td.textContent = cell;
-                    }
+                    td.textContent = cell;
                     tr.appendChild(td);
                 });
 
-                if (role === 'admin') {
-                    // Botón de eliminar fila solo visible para administradores
-                    const deleteTd = document.createElement('td');
-                    const deleteButton = document.createElement('button');
-                    deleteButton.textContent = "Eliminar";
-                    deleteButton.onclick = () => {
-                        quadrantData.splice(rowIndex, 1); // Eliminar la fila del array
-                        saveQuadrant(); // Guardar los cambios en LocalStorage
-                        renderQuadrant('admin'); // Actualizar la vista
-                    };
-                    deleteTd.appendChild(deleteButton);
-                    tr.appendChild(deleteTd);
-                }
+                // Agregar botón de eliminar
+                const deleteTd = document.createElement('td');
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = "Eliminar";
+                deleteButton.onclick = async () => {
+                    quadrantData.splice(index, 1);
+                    const { sha } = await fetchQuadrantData();
+                    await updateQuadrantData(quadrantData, sha);
+                    loadQuadrantData();
+                };
+                deleteTd.appendChild(deleteButton);
+                tr.appendChild(deleteTd);
 
                 tableBody.appendChild(tr);
             });
         }
 
-        // Inicializar la vista
-        document.addEventListener('DOMContentLoaded', () => {
-            renderQuadrant('user');
-        });
+        async function addRow() {
+            const newRow = {
+                evento: '',
+                hora: '',
+                fila1: '',
+                fila2: '',
+                hora2: '',
+                fila3: '',
+                fila4: ''
+            };
+            const { quadrantData, sha } = await fetchQuadrantData();
+            quadrantData.push(newRow);
+            await updateQuadrantData(quadrantData, sha);
+            loadQuadrantData();
+        }
+
+        // Cargar los datos al iniciar
+        document.addEventListener('DOMContentLoaded', loadQuadrantData);
     </script>
 </body>
 </html>
