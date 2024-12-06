@@ -1,0 +1,77 @@
+<script>
+    // Cargar los datos desde LocalStorage
+    let quadrantData = JSON.parse(localStorage.getItem('quadrantData')) || [];
+
+    function saveQuadrant() {
+        // Guardar los datos en LocalStorage
+        localStorage.setItem('quadrantData', JSON.stringify(quadrantData));
+    }
+
+    function login() {
+        const username = document.getElementById('username').value;
+        if (username === 'admin') {
+            document.getElementById('login-panel').style.display = 'none';
+            document.getElementById('admin-panel').style.display = 'block';
+            renderQuadrant('admin');
+        } else {
+            document.getElementById('login-panel').style.display = 'none';
+            document.getElementById('user-panel').style.display = 'block';
+            renderQuadrant('user');
+        }
+    }
+
+    function addRow() {
+        // Crear una nueva fila con valores vacíos
+        const newRow = ['', '', '', '', '', '', ''];
+        quadrantData.push(newRow); // Agregar al array de datos
+        saveQuadrant(); // Guardar los datos en LocalStorage
+        renderQuadrant('admin'); // Actualizar la vista
+    }
+
+    function renderQuadrant(role) {
+        const tableId = role === 'admin' ? 'quadrant-table' : 'user-quadrant-table';
+        const tableBody = document.getElementById(tableId).querySelector('tbody');
+        tableBody.innerHTML = '';
+
+        quadrantData.forEach((row, rowIndex) => {
+            const tr = document.createElement('tr');
+            row.forEach((cell, colIndex) => {
+                const td = document.createElement('td');
+                if (role === 'admin') {
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.value = cell;
+                    input.oninput = (e) => {
+                        quadrantData[rowIndex][colIndex] = e.target.value;
+                        saveQuadrant();
+                    };
+                    td.appendChild(input);
+                } else {
+                    td.textContent = cell;
+                }
+                tr.appendChild(td);
+            });
+
+            if (role === 'admin') {
+                // Botón de eliminar fila solo visible para administradores
+                const deleteTd = document.createElement('td');
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = "Eliminar";
+                deleteButton.onclick = () => {
+                    quadrantData.splice(rowIndex, 1); // Eliminar la fila del array
+                    saveQuadrant(); // Guardar los cambios en LocalStorage
+                    renderQuadrant('admin'); // Actualizar la vista
+                };
+                deleteTd.appendChild(deleteButton);
+                tr.appendChild(deleteTd);
+            }
+
+            tableBody.appendChild(tr);
+        });
+    }
+
+    // Inicializar la vista
+    document.addEventListener('DOMContentLoaded', () => {
+        renderQuadrant('user');
+    });
+</script>
