@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -108,14 +107,49 @@
     </div>
 
     <script>
-        let quadrantData = JSON.parse(localStorage.getItem('quadrantData')) || [];
+        const GITHUB_API_URL = 'https://api.github.com/repos/Yeray2001/cuadrante_filas/contents/data.json';
+        const GITHUB_TOKEN = 'TU_PERSONAL_ACCESS_TOKEN';
+        let quadrantData = [];
+        let currentUser = '';
 
-        function saveQuadrant() {
-            localStorage.setItem('quadrantData', JSON.stringify(quadrantData));
+        async function fetchQuadrantData() {
+            const response = await fetch(GITHUB_API_URL, {
+                headers: {
+                    Authorization: `token ${GITHUB_TOKEN}`
+                }
+            });
+            const fileData = await response.json();
+            const decodedContent = atob(fileData.content);
+            const data = JSON.parse(decodedContent);
+            return { data, sha: fileData.sha };
         }
 
-        function login() {
+        async function updateQuadrantData(newData, sha) {
+            const updatedContent = btoa(JSON.stringify(newData, null, 2));
+            await fetch(GITHUB_API_URL, {
+                method: 'PUT',
+                headers: {
+                    Authorization: `token ${GITHUB_TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: 'Actualizar cuadrantes',
+                    content: updatedContent,
+                    sha: sha
+                })
+            });
+        }
+
+        async function login() {
             const username = document.getElementById('username').value;
+            const { data } = await fetchQuadrantData();
+            currentUser = username;
+
+            if (!data[currentUser]) {
+                data[currentUser] = [];
+            }
+
+            quadrantData = data[currentUser];
             if (username === 'admin') {
                 document.getElementById('login-panel').style.display = 'none';
                 document.getElementById('admin-panel').style.display = 'block';
@@ -127,11 +161,15 @@
             }
         }
 
-        function addRow() {
+        async function addRow() {
             const newRow = ['', '', '', '', '', '', ''];
             quadrantData.push(newRow);
+
+            const { data, sha } = await fetchQuadrantData();
+            data[currentUser] = quadrantData;
+            await updateQuadrantData(data, sha);
+
             renderQuadrant('admin');
-            saveQuadrant();
         }
 
         function renderQuadrant(role) {
@@ -147,9 +185,11 @@
                         const input = document.createElement('input');
                         input.type = 'text';
                         input.value = cell;
-                        input.oninput = (e) => {
+                        input.oninput = async (e) => {
                             quadrantData[rowIndex][colIndex] = e.target.value;
-                            saveQuadrant();
+                            const { data, sha } = await fetchQuadrantData();
+                            data[currentUser] = quadrantData;
+                            await updateQuadrantData(data, sha);
                         };
                         td.appendChild(input);
                     } else {
@@ -161,10 +201,12 @@
             });
         }
 
-        // Inicializa el cuadrante si es admin o usuario
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            const { data } = await fetchQuadrantData();
+            quadrantData = data[currentUser] || [];
             renderQuadrant('user');
         });
     </script>
 </body>
 </html>
+
