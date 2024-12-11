@@ -112,17 +112,29 @@
         let quadrantData = [];
         let currentUser = '';
 
-        async function fetchQuadrantData() {
-            const response = await fetch(GITHUB_API_URL, {
-                headers: {
-                    Authorization: `token ${GITHUB_TOKEN}`
-                }
-            });
-            const fileData = await response.json();
-            const decodedContent = atob(fileData.content);
-            const data = JSON.parse(decodedContent);
-            return { data, sha: fileData.sha };
+      async function fetchQuadrantData() {
+    try {
+        const response = await fetch(GITHUB_API_URL, {
+            headers: {
+                Authorization: `token ${GITHUB_TOKEN}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP Error: ${response.status}`);
         }
+
+        const fileData = await response.json(); // Parsear JSON de la respuesta
+        const decodedContent = atob(fileData.content); // Decodificar contenido Base64
+        const data = JSON.parse(decodedContent); // Convertir JSON decodificado a objeto
+        return { data, sha: fileData.sha }; // Devolver datos y SHA del archivo
+    } catch (error) {
+        console.error('Error al obtener los datos de GitHub:', error);
+        alert('No se pudo acceder al archivo data.json. Verifica la configuración.');
+        throw error;
+    }
+}
+
 
         async function updateQuadrantData(newData, sha) {
             const updatedContent = btoa(JSON.stringify(newData, null, 2));
