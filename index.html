@@ -141,23 +141,35 @@
         }
 
         async function login() {
-            const username = document.getElementById('username').value;
-            const { data } = await fetchQuadrantData();
-            currentUser = username;
-
-            if (!data[currentUser]) {
-                data[currentUser] = [];
+            const username = document.getElementById('username').value.trim();
+            if (!username) {
+                alert('Por favor, ingresa un nombre de usuario.');
+                return;
             }
 
-            quadrantData = data[currentUser];
-            if (username === 'admin') {
-                document.getElementById('login-panel').style.display = 'none';
-                document.getElementById('admin-panel').style.display = 'block';
-                renderQuadrant('admin');
-            } else {
-                document.getElementById('login-panel').style.display = 'none';
-                document.getElementById('user-panel').style.display = 'block';
-                renderQuadrant('user');
+            try {
+                const { data } = await fetchQuadrantData();
+                currentUser = username;
+
+                if (!data[currentUser]) {
+                    alert(`El usuario "${currentUser}" no está registrado.`);
+                    return;
+                }
+
+                quadrantData = data[currentUser];
+
+                if (username === 'admin') {
+                    document.getElementById('login-panel').style.display = 'none';
+                    document.getElementById('admin-panel').style.display = 'block';
+                    renderQuadrant('admin');
+                } else {
+                    document.getElementById('login-panel').style.display = 'none';
+                    document.getElementById('user-panel').style.display = 'block';
+                    renderQuadrant('user');
+                }
+            } catch (error) {
+                console.error('Error al iniciar sesión:', error);
+                alert('Hubo un problema al conectar con el servidor. Verifica tu conexión o el archivo data.json.');
             }
         }
 
@@ -202,9 +214,13 @@
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
-            const { data } = await fetchQuadrantData();
-            quadrantData = data[currentUser] || [];
-            renderQuadrant('user');
+            try {
+                const { data } = await fetchQuadrantData();
+                quadrantData = data[currentUser] || [];
+                renderQuadrant('user');
+            } catch (error) {
+                console.error('Error al cargar datos:', error);
+            }
         });
     </script>
 </body>
